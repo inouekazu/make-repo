@@ -35,7 +35,7 @@ get_version() {
 get_filename_rpm() {
     local rpmname="$1"
     local filename=""
-    filename=`find $RPMDIRS -maxdepth 1 -type f | grep -v "src\.rpm" | grep "$rpmname-[0-9].*\.rpm"`
+    filename=`find $RPMDIRS -maxdepth 1 -type f | grep -v "src\.rpm" | grep "/$rpmname-[0-9].*\.rpm"`
     if [ $? -ne 0 ]; then
         echo "$rpmname file not found" >&2
         exit 1
