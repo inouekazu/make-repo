@@ -8,16 +8,10 @@ Summary: Pacemaker Configuration System
 #building only for architectures with pacemaker and corosync available
 ExclusiveArch: i686 x86_64 s390x ppc64le
 
-%global pcs_snmp_pkg_name  pcs-snmp
-%global pyagentx_version   0.4.pcs.1
-%global bundled_lib_dir    pcs/bundled
-%global pyagentx_dir       %{bundled_lib_dir}/pyagentx
 
 #part after last slash is recognized as filename in look-aside repository
 #desired name is achived by trick with hash anchor
 Source0: %{url}/archive/%{version}.tar.gz#/%{name}-%{version}.tar.gz
-
-Source41: https://github.com/ondrejmular/pyagentx/archive/v%{pyagentx_version}.tar.gz#/pyagentx-%{pyagentx_version}.tar.gz
 
 # git for patches
 BuildRequires: git
@@ -65,25 +59,6 @@ Requires: overpass-fonts
 pcs is a corosync and pacemaker configuration tool.  It permits users to
 easily view, modify and create pacemaker based clusters.
 
-# pcs-snmp package definition
-%package -n %{pcs_snmp_pkg_name}
-Group: System Environment/Base
-Summary: Pacemaker cluster SNMP agent
-License: GPLv2, BSD 2-clause
-URL: https://github.com/ClusterLabs/pcs
-
-# tar for unpacking pyagetx source tar ball
-BuildRequires: tar
-
-Requires: pcs = %{version}-%{release}
-Requires: pacemaker
-Requires: net-snmp
-
-Provides: bundled(pyagentx) = %{pyagentx_version}
-
-%description -n %{pcs_snmp_pkg_name}
-SNMP agent that provides information about pacemaker cluster to the master agent (snmpd)
-
 %define PCS_PREFIX /usr
 %prep
 %autosetup -p1 -S git
@@ -102,13 +77,6 @@ UpdateTimestamps() {
   done
 }
 
-mkdir -p %{bundled_lib_dir}
-tar -xzf %SOURCE41 -C %{bundled_lib_dir}
-mv %{bundled_lib_dir}/pyagentx-%{pyagentx_version} %{pyagentx_dir}
-cp %{pyagentx_dir}/LICENSE.txt pyagentx_LICENSE.txt
-cp %{pyagentx_dir}/CONTRIBUTORS.txt pyagentx_CONTRIBUTORS.txt
-cp %{pyagentx_dir}/README.md pyagentx_README.md
-
 %build
 
 %install
@@ -119,7 +87,6 @@ make install \
   PYTHON_SITELIB=%{python_sitelib} \
   PREFIX=%{PCS_PREFIX} \
   BASH_COMPLETION_DIR=$RPM_BUILD_ROOT/usr/share/bash-completion/completions \
-  PYAGENTX_DIR=`readlink -f %{pyagentx_dir}` \
   SYSTEMCTL_OVERRIDE=true \
   BUILD_GEMS=false
 
@@ -148,23 +115,21 @@ run_all_tests(){
 
 run_all_tests
 
+rm -f  $RPM_BUILD_ROOT/etc/sysconfig/pcs_snmp_agent
+rm -rf $RPM_BUILD_ROOT/usr/lib/pcs/bundled
+rm -f  $RPM_BUILD_ROOT/usr/lib/pcs/pcs_snmp_agent
+rm -f  $RPM_BUILD_ROOT/usr/lib/systemd/system/pcs_snmp_agent.service
+rm -f  $RPM_BUILD_ROOT/usr/share/man/man8/pcs_snmp_agent.8.gz
+rm -rf $RPM_BUILD_ROOT/usr/share/snmp
+
 %post
 %systemd_post pcsd.service
-
-%post -n %{pcs_snmp_pkg_name}
-%systemd_post pcs_snmp_agent.service
 
 %preun
 %systemd_preun pcsd.service
 
-%preun -n %{pcs_snmp_pkg_name}
-%systemd_preun pcs_snmp_agent.service
-
 %postun
 %systemd_postun_with_restart pcsd.service
-
-%postun -n %{pcs_snmp_pkg_name}
-%systemd_postun_with_restart pcs_snmp_agent.service
 
 %files
 %{python_sitelib}/pcs
@@ -197,20 +162,6 @@ run_all_tests
 %doc COPYING
 %doc CHANGELOG.md
 %doc README.md
-
-%files -n %{pcs_snmp_pkg_name}
-/usr/lib/pcs/pcs_snmp_agent
-/usr/lib/pcs/bundled/packages/pyagentx*
-/usr/lib/systemd/system/pcs_snmp_agent.service
-/usr/share/snmp/mibs/PCMK-PCS*-MIB.txt
-%{_mandir}/man8/pcs_snmp_agent.*
-%config(noreplace) /etc/sysconfig/pcs_snmp_agent
-%dir /var/log/pcs
-%doc COPYING
-%doc CHANGELOG.md
-%doc pyagentx_LICENSE.txt
-%doc pyagentx_CONTRIBUTORS.txt
-%doc pyagentx_README.md
 
 %changelog
 * Wed Mar 21 2018 Ondrej Mular <omular@redhat.com> - 0.9.162-5.el7_5.1
